@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Bidder } from '../../entities/bidder.entity';
 import { User } from '../../entities/user.entity';
 import { BidderResponse } from '../interfaces/bidder-response.interface';
-import { ErrorUtils } from '../utils/error.utils';
+import { ErrorUtils } from '../../utils/error.utils';
 
 @Injectable()
 export class BidderDetailsService {
@@ -26,25 +26,27 @@ export class BidderDetailsService {
         throw new UnauthorizedException('User not found');
       }
 
-      if (user.user_type !== 'bidder') {
+      if (user.user_type !== 2) {
         throw new UnauthorizedException('User is not a bidder');
       }
 
       if (!user.bidder) {
         throw new NotFoundException('Bidder profile not found');
       }
+      console.log(user);
+      console.log(user.bidder);
 
       return {
         success: true,
         message: 'Bidder details retrieved successfully',
         data: {
-          id: user.bidder.id,
-          title: user.bidder.title,
-          bio_description: user.bidder.bio_discription,
-          contact_number: user.bidder.contact_number,
-          address: user.bidder.address,
-          latitude: user.bidder.latitude,
-          longitude: user.bidder.longitude,
+          id: user.bidder[0].id,
+          title: user.bidder[0].title,
+          bio_description: user.bidder[0].bio_discription,
+          contact_number: user.bidder[0].contact_number,
+          address: user.bidder[0].address,
+          latitude: user.bidder[0].latitude,
+          longitude: user.bidder[0].longitude,
           user: {
             id: user.id,
             email: user.email,

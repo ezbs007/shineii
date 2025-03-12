@@ -5,7 +5,7 @@ import { JobsService } from './jobs.service';
 import { Job } from '../entities/job.entity';
 import { Bid } from '../entities/bid.entity';
 import { User } from '../entities/user.entity';
-import { JobPost } from '../entities/job-post.entity';
+import { JobPost } from 'src/entities/job-post.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Job, Bid, User, JobPost])],

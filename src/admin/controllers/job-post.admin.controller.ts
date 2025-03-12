@@ -4,10 +4,12 @@ import { AdminAuthGuard } from '../guards/admin-auth.guard';
 import { CreateJobPostDto } from '../dto/create-job-post.dto';
 import { UpdateJobPostDto } from '../dto/update-job-post.dto';
 
-@Controller('admin/job-posts')
+console.log('JobPostAdminController');
+@Controller('admin/jobposts')
 @UseGuards(AdminAuthGuard)
 export class JobPostAdminController {
   constructor(private readonly jobPostService: JobPostAdminService) {}
+
 
   @Get()
   @Render('admin/job-post/list')

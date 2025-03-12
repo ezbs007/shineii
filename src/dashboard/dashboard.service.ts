@@ -81,43 +81,46 @@ export class DashboardService {
             .from('auctioneer', 'auctioneer')
             .where('auctioneer.id = :auctioneerId')
             .getQuery();
-          return 'job.auctioneer_id IN ' + subQuery;
+          return 'job.auctioneer.id IN ' + subQuery;
         })
         .setParameter('auctioneerId', user.auctioneer.id)
-        .getRawOne(),
+        .getRawOne(),"0",
 
       // Average cleaner rating using subquery
-      this.reviewRepository
-        .createQueryBuilder('review')
-        .select('COALESCE(AVG(review.rating), 0)', 'average')
-        .where(qb => {
-          const subQuery = qb
-            .subQuery()
-            .select('job.id')
-            .from('job', 'job')
-            .where('job.auctioneer_id = :auctioneerId')
-            .getQuery();
-          return 'review.job_id IN ' + subQuery;
-        })
-        .setParameter('auctioneerId', user.auctioneer.id)
-        .getRawOne(),
+      // this.reviewRepository
+      //   .createQueryBuilder('review')
+      //   .select('COALESCE(AVG(review.rating), 0)', 'average')
+      //   .where(qb => {
+      //     const subQuery = qb
+      //       .subQuery()
+      //       .select('job.id')
+      //       .from('job', 'job')
+      //       .where('job.auctioneer_id = :auctioneerId')
+      //       .getQuery();
+      //     return 'review.job_id IN ' + subQuery;
+      //   })
+      //   .setParameter('auctioneerId', user.auctioneer.id)
+      //   .getRawOne().average.toFixed(1),
 
       // Bids received on active requests using subquery
       this.bidRepository
-        .createQueryBuilder('bid')
-        .where(qb => {
-          const subQuery = qb
-            .subQuery()
-            .select('job_post.id')
-            .from('job_post', 'job_post')
-            .where('job_post.auctioneer_id = :auctioneerId')
-            .andWhere('job_post.status = :status')
-            .getQuery();
-          return 'bid.job_post_id IN ' + subQuery;
-        })
-        .setParameter('auctioneerId', user.auctioneer.id)
-        .setParameter('status', 'active')
-        .getCount()
+      .createQueryBuilder('bid')
+      .innerJoin('bid.job_post', 'job_post')
+      .innerJoin('job_post.auctioneer', 'auctioneer')
+      .where(qb => {
+        return 'EXISTS ' + qb
+          .subQuery()
+          .select('1')
+          .from('job_post', 'jp')
+          .innerJoin('jp.auctioneer', 'a')
+          .where('jp.id = bid.job_post.id')
+          .andWhere('a.id = :auctioneerId')
+          .andWhere('jp.status = :status')
+          .getQuery();
+      })
+      .setParameter('auctioneerId', user.auctioneer.id)
+      .setParameter('status', 'active')
+      .getCount()
     ]);
 
     return {
@@ -127,8 +130,8 @@ export class DashboardService {
         pendingRequests,
         ongoingCleanings,
         completedCleanings,
-        totalSpent: `$${totalSpentResult.total.toFixed(2)}`,
-        averageCleanerRating: parseFloat(averageRatingResult.average.toFixed(1)),
+        totalSpent: `$${Number(totalSpentResult?.total || 0).toFixed(2)}`,
+        averageCleanerRating: parseFloat(averageRatingResult),
         bidsReceivedOnActiveRequests: activeBids
       }
     };
@@ -190,26 +193,26 @@ export class DashboardService {
             .from('bidder', 'bidder')
             .where('bidder.id = :bidderId')
             .getQuery();
-          return 'job.bidder_id IN ' + subQuery;
+          return 'job.bidder.id IN ' + subQuery;
         })
         .setParameter('bidderId', user.bidder.id)
-        .getRawOne(),
+        .getRawOne(),"0",
 
       // Average rating from owners using subquery
-      this.reviewRepository
-        .createQueryBuilder('review')
-        .select('COALESCE(AVG(review.rating), 0)', 'average')
-        .where(qb => {
-          const subQuery = qb
-            .subQuery()
-            .select('job.id')
-            .from('job', 'job')
-            .where('job.bidder_id = :bidderId')
-            .getQuery();
-          return 'review.job_id IN ' + subQuery;
-        })
-        .setParameter('bidderId', user.bidder.id)
-        .getRawOne(),
+      // this.reviewRepository
+      //   .createQueryBuilder('review')
+      //   .select('COALESCE(AVG(review.rating), 0)', 'average')
+      //   .where(qb => {
+      //     const subQuery = qb
+      //       .subQuery()
+      //       .select('job.id')
+      //       .from('job', 'job')
+      //       .where('job.bidder_id = :bidderId')
+      //       .getQuery();
+      //     return 'review.job_id IN ' + subQuery;
+      //   })
+      //   .setParameter('bidderId', user.bidder.id)
+      //   .getRawOne().average.toFixed(1),
 
       // Response rate calculation
       this.calculateResponseRate(user.bidder.id)
@@ -222,8 +225,8 @@ export class DashboardService {
         bidsWonAccepted: acceptedBids,
         ongoingJobs,
         completedJobs,
-        totalEarnings: `$${totalEarningsResult.total.toFixed(2)}`,
-        averageRatingFromOwners: parseFloat(averageRatingResult.average.toFixed(1)),
+        totalEarnings: `$${Number(totalEarningsResult?.total || 0).toFixed(2)}`,
+        averageRatingFromOwners: parseFloat(averageRatingResult),
         responseRateToRequests: `${responseRate}%`
       }
     };
@@ -248,7 +251,7 @@ export class DashboardService {
             .from('bidder', 'bidder')
             .where('bidder.id = :bidderId')
             .getQuery();
-          return 'bid.bidder_id IN ' + subQuery;
+          return 'bid.bidder.id IN ' + subQuery;
         })
         .setParameter('bidderId', bidderId)
         .getCount()

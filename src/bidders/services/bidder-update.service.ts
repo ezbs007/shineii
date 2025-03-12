@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Bidder } from '../../entities/bidder.entity';
@@ -6,6 +6,7 @@ import { User } from '../../entities/user.entity';
 import { UpdateBidderDto } from '../dto/update-bidder.dto';
 import { BidderResponse } from '../interfaces/bidder-response.interface';
 import { LocationValidator } from '../validators/location.validator';
+import { ErrorUtils } from '../../utils/error.utils';
 
 @Injectable()
 export class BidderUpdateService {
@@ -18,20 +19,18 @@ export class BidderUpdateService {
 
   async update(userId: number, updateBidderDto: UpdateBidderDto): Promise<BidderResponse> {
     try {
+      // Validate user and permissions
       const user = await this.validateUserAndPermissions(userId);
-      LocationValidator.validate(updateBidderDto.latitude, updateBidderDto.longitude);
 
-      const bidder = await this.bidderRepository.findOne({
-        where: { user: { id: userId } },
-        relations: ['user'],
-      });
-
-      if (!bidder) {
-        throw new NotFoundException('Bidder profile not found');
+      // Validate location if provided
+      if (updateBidderDto.latitude || updateBidderDto.longitude) {
+        LocationValidator.validate(updateBidderDto.latitude, updateBidderDto.longitude);
       }
+      console.log(updateBidderDto);
 
-      Object.assign(bidder, updateBidderDto);
-      const updatedBidder = await this.bidderRepository.save(bidder);
+      // Update bidder profile
+      const updatedBidder = await this.updateBidderProfile(user.bidder, updateBidderDto);
+      console.log(updatedBidder);
 
       return {
         success: true,
@@ -57,7 +56,7 @@ export class BidderUpdateService {
         success: false,
         message: error.message,
         error: {
-          code: this.getErrorCode(error),
+          code: ErrorUtils.getErrorCode(error),
           details: error.message,
         },
       };
@@ -74,7 +73,7 @@ export class BidderUpdateService {
       throw new UnauthorizedException('User not found');
     }
 
-    if (user.user_type !== 'bidder') {
+    if (user.user_type !== 2) {
       throw new UnauthorizedException('Only bidders can update bidder profiles');
     }
 
@@ -90,16 +89,4 @@ export class BidderUpdateService {
     return this.bidderRepository.save(bidder);
   }
 
-  private getErrorCode(error: Error): string {
-    if (error instanceof UnauthorizedException) {
-      return 'UNAUTHORIZED';
-    }
-    if (error instanceof NotFoundException) {
-      return 'NOT_FOUND';
-    }
-    if (error instanceof BadRequestException) {
-      return 'BAD_REQUEST';
-    }
-    return 'INTERNAL_ERROR';
-  }
 }

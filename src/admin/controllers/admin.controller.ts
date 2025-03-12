@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AdminService } from '../services/admin.service';
 import { AdminAuthGuard } from '../guards/admin-auth.guard';
 import { LoginDto } from '../dto/login.dto';
+console.log('AdminController');
 
 @Controller('admin')
 export class AdminController {
@@ -10,7 +11,10 @@ export class AdminController {
 
   @Get('login')
   @Render('admin/login')
-  getLogin() {
+  getLogin(@Req() req, @Res() res: Response) {
+    if (req.cookies.admin_token) {
+      return res.redirect('/admin/dashboard');
+    }
     return { message: '' };
   }
 
@@ -23,8 +27,10 @@ export class AdminController {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'strict',
-          maxAge: 24 * 60 * 60 * 1000
-        });
+
+          maxAge: 24 * 60 * 60 * 1000 // 24 hours
+
+       });
         return res.redirect('/admin/dashboard');
       }
       return res.render('admin/login', { message: 'Invalid credentials' });
@@ -47,10 +53,10 @@ export class AdminController {
     return res.redirect('/admin/login');
   }
 
-  // Catch-all route for 404 errors
-  @Get('*')
-  @Render('admin/404')
-  notFound() {
-    throw new NotFoundException();
-  }
+  // // Catch-all route for 404 errors
+  // @Get('*')
+  // @Render('admin/404')
+  // notFound() {
+  //   throw new NotFoundException();
+  // }
 }

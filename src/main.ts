@@ -7,26 +7,24 @@ import * as cookieParser from 'cookie-parser';
 import * as express from 'express';
 
 async function bootstrap() {
+  // const app = await NestFactory.create(AppModule);
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  
-  // Configure cookie parser
+
+  // app.use('/admin/css',express.static(path.join(__dirname, 'admin/public/css')));
+  // app.use('/admin/js', express.static(path.join(__dirname, 'admin/public/js')));
   app.use(cookieParser());
-  
-  // Configure raw body parsing for Stripe webhooks
   app.use(
     '/payments/webhook',
     express.raw({ type: 'application/json' }),
   );
-  
-  // Configure view engine with the correct path
-  app.setBaseViewsDir(join(__dirname, '..', 'views'));
+
+  app.setBaseViewsDir(join(__dirname, '..', 'src/views'));
   app.setViewEngine('ejs');
-  
-  // Serve static files
-  app.useStaticAssets(join(__dirname, '..', 'public'));
-  
+
+  app.useStaticAssets(join(__dirname, '..', 'public/public'));
+
   app.useGlobalPipes(new ValidationPipe());
   app.enableCors();
-  await app.listen(3000);
+  await app.listen(process.env.PORT || 3000);
 }
 bootstrap();

@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JobPost } from '../entities/job-post.entity';
+import { Auctioneer } from '../entities/auctioneer.entity';
 import { Bidder } from '../entities/bidder.entity';
-import { User } from '../entities/user.entity';
-import { JobPostController } from './controllers/job-post.controller';
-import { JobPostService } from './services/job-post.service';
-import { JobPostQueryService } from './services/job-post-query.service';
-import { JobPostQueryBuilder } from './services/job-post-query.builder';
+import { JobPostsController } from './job-posts.controller';
+import { JobPostsService } from './job-posts.service';
+import { JobPostQueryService } from './job-post-query.service';
+import { User } from 'src/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([JobPost, Bidder, User])],
-  controllers: [JobPostController],
-  providers: [JobPostService, JobPostQueryService, JobPostQueryBuilder],
+  imports: [TypeOrmModule.forFeature([JobPost, Auctioneer, Bidder, User])],
+  controllers: [JobPostsController],
+  providers: [JobPostsService, JobPostQueryService],
 })
-export class JobPostsModule {}
+export class JobPostsModule {}  

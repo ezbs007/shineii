@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Auctioneer } from '../../entities/auctioneer.entity';
 import { User } from '../../entities/user.entity';
 import { CreateAuctioneerDto } from '../dto/create-auctioneer.dto';
-import { createHash } from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuctioneerService {
@@ -14,10 +14,6 @@ export class AuctioneerService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
   ) {}
-
-  private hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
-  }
 
   async findAll() {
     return this.auctioneerRepository.find({
@@ -37,14 +33,14 @@ export class AuctioneerService {
   }
 
   async create(createAuctioneerDto: CreateAuctioneerDto) {
-    const hashedPassword = this.hashPassword(createAuctioneerDto.password);
+    const hashedPassword = await bcrypt.hash(createAuctioneerDto.password, 10);
     
     const user = this.userRepository.create({
       email: createAuctioneerDto.email,
       password: hashedPassword,
       first_name: createAuctioneerDto.first_name,
       last_name: createAuctioneerDto.last_name,
-      user_type: 'auctioneer',
+      user_type: 1,
     });
     
     const savedUser = await this.userRepository.save(user);
@@ -69,7 +65,7 @@ export class AuctioneerService {
     });
     
     if (updateAuctioneerDto.password) {
-      const hashedPassword = this.hashPassword(updateAuctioneerDto.password);
+      const hashedPassword = await bcrypt.hash(updateAuctioneerDto.password, 10);
       await this.userRepository.update(auctioneer.user.id, {
         password: hashedPassword,
       });

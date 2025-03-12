@@ -1,6 +1,6 @@
 import { UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 
-export class ErrorUtil {
+export class ErrorUtils {
   static getErrorCode(error: Error): string {
     if (error instanceof UnauthorizedException) {
       return 'UNAUTHORIZED';
@@ -28,4 +28,5 @@ export class ErrorUtil {
       },
     };
   }
+  
 }

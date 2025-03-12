@@ -14,9 +14,11 @@ export class AdminAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
+    console.log(request.cookies);
     const token = request.cookies['admin_token'];
 
     if (!token) {
+      console.log("err");
       throw new UnauthorizedException();
     }
 
@@ -26,13 +28,15 @@ export class AdminAuthGuard implements CanActivate {
         where: { id: payload.sub },
       });
 
-      if (!user || user.user_type !== 'admin') {
+      if (!user || user.user_type !== 0) {
+        console.log("err");
         throw new UnauthorizedException();
       }
 
       request.user = user;
       return true;
     } catch {
+      console.log("err");
       throw new UnauthorizedException();
     }
   }

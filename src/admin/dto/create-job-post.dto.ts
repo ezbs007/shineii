@@ -3,7 +3,7 @@ import { IsNotEmpty, IsNumber, IsString, IsArray, IsDateString, IsOptional } fro
 export class CreateJobPostDto {
   @IsNotEmpty()
   @IsNumber()
-  boatLength: number;
+  boatLength: string;
 
   @IsArray()
   @IsString({ each: true })

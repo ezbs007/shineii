@@ -21,16 +21,12 @@ export interface IJob {
     message?: string;
     job_post: {
       id: number;
-      boatLength: number;
+      boatLength: string;
       additionalServices: string[];
       notes?: string;
     };
   };
-  reviews: Array<{
-    id: number;
-    rating: number;
-    review: string;
-  }>;
+
 }
 
 export interface ICalendarJob {
@@ -44,10 +40,10 @@ export interface ICalendarJob {
     user: {
       first_name: string;
       last_name: string;
-    };
+    }
   };
   job_details: {
-    boat_length: number;
+    boat_length: string;
     additional_services: string[];
     notes?: string;
   };
@@ -61,9 +57,6 @@ export interface IJobResponse {
   success: boolean;
   message: string;
   data?: IJob | IJob[] | ICalendarJob[];
-  total?: number;
-  page?: number;
-  totalPages?: number;
   error?: {
     code: string;
     details?: string;

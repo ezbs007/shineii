@@ -1,4 +1,4 @@
-import { Job } from '../../entities/job.entity';
+import { Job } from 'src/entities/job.entity';
 import { IJob, ICalendarJob } from '../interfaces/job.interface';
 
 export class JobMapper {
@@ -30,12 +30,7 @@ export class JobMapper {
           additionalServices: job.bid.job_post.additionalServices,
           notes: job.bid.job_post.notes
         }
-      },
-      reviews: job.reviews?.map(review => ({
-        id: review.id,
-        rating: review.rating,
-        review: review.review
-      })) || []
+      }
     };
   }
 

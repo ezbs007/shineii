@@ -10,12 +10,18 @@ export class LocationDto {
 
   @IsNumber()
   longitude: number;
+
+  @IsString()
+  dockNumber: string;
+
+  @IsString() 
+  placeId: string;
 }
 
 export class CreateJobPostDto {
   @IsNotEmpty()
-  @IsNumber()
-  boatLength: number;
+  @IsString()
+  boatLength: string;
 
   @IsArray()
   @IsString({ each: true })
@@ -31,6 +37,9 @@ export class CreateJobPostDto {
   @Type(() => LocationDto)
   location?: LocationDto;
 
+  @IsNumber()
+  dirtinessLevel:number;
+
   @IsOptional()
   @IsString()
   preferredDate?: string;
@@ -38,6 +47,10 @@ export class CreateJobPostDto {
   @IsOptional()
   @IsNumber()
   max_bid_amount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  min_bid_amount?: number;
 
   @IsOptional()
   @IsDateString()
@@ -54,4 +67,8 @@ export class CreateJobPostDto {
   @IsOptional()
   @IsDateString()
   job_end_date?: Date;
+
+  @IsOptional()
+  @IsString()
+  boatName?: string; // Add this line
 }

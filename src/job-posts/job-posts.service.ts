@@ -1,59 +1,173 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JobPost } from '../entities/job-post.entity';
+import { Auctioneer } from '../entities/auctioneer.entity';
 import { Bidder } from '../entities/bidder.entity';
-import { User } from '../entities/user.entity';
 import { CreateJobPostDto } from './dto/create-job-post.dto';
+import { FilterJobPostsDto } from './dto/filter-job-posts.dto';
+import { JobPostQueryService } from './job-post-query.service';
+import { IJobPostResponse, IJobPost } from './interfaces/job-post.interface';
+import { ErrorUtils } from 'src/utils/error.utils';
+import { JobPostMapper } from './mapper/job-post.mapper';
 
 @Injectable()
 export class JobPostsService {
   constructor(
     @InjectRepository(JobPost)
     private jobPostRepository: Repository<JobPost>,
+    @InjectRepository(Auctioneer)
+    private auctioneerRepository: Repository<Auctioneer>,
     @InjectRepository(Bidder)
     private bidderRepository: Repository<Bidder>,
-    @InjectRepository(User)
-    private userRepository: Repository<User>
+
+    private jobPostQueryService: JobPostQueryService,
   ) {}
 
   async createJobPost(userId: number, createJobPostDto: CreateJobPostDto): Promise<JobPost> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['auctioneer'],
+    const auctioneer = await this.auctioneerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
     });
 
-    if (!user || !user.auctioneer) {
+    if (!auctioneer) {
       throw new UnauthorizedException('Only auctioneers can create job posts');
     }
 
     const jobPost = this.jobPostRepository.create({
       ...createJobPostDto,
-      auctioneer: user.auctioneer,
-      status: 'active' // Set initial status to active
+      auctioneer,
+      status: 'active'
     });
 
     return this.jobPostRepository.save(jobPost);
   }
 
+  async getJobPostDetails(userId: number, jobPostId: number): Promise<IJobPostResponse> {
+    try {
+      const jobPost = await this.jobPostRepository.findOne({
+        where: { 
+          id: jobPostId
+        },
+        relations: [
+          'auctioneer',
+          'auctioneer.user',
+          'bids',
+          'bids.bidder',
+          'bids.bidder.user'
+        ],
+      });
+
+      if (!jobPost) {
+        throw new NotFoundException('Job post not found');
+      }
+
+      const mappedJobPost = JobPostMapper.toDTO(jobPost, userId);
+
+      return {
+        success: true,
+        message: 'Job post details retrieved successfully',
+        data: mappedJobPost
+      };
+    } catch (error) {
+      return ErrorUtils.createErrorResponse(error);
+    }
+  }
+
   async getJobPostsByAuctioneer(userId: number): Promise<JobPost[]> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['auctioneer'],
+    const auctioneer = await this.auctioneerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
     });
 
-    if (!user || !user.auctioneer) {
-      throw new UnauthorizedException('Only auctioneers can access this endpoint');
+    if (!auctioneer) {
+      throw new NotFoundException('Auctioneer not found');
     }
 
     return this.jobPostRepository.find({
-      where: { auctioneer: { id: user.auctioneer.id } },
-      relations: ['auctioneer', 'bids', 'bids.bidder', 'bids.bidder.user'],
-      order: { id: 'DESC' },
+      where: { auctioneer: { id: auctioneer.id } },
+      relations: ['auctioneer', 'auctioneer.user', 'bids'],
+      order: {
+        bid_end_date: 'DESC',
+      },
     });
   }
 
+  async getAllJobPosts(page: number = 1, limit: number = 10): Promise<{ data: JobPost[]; total: number; page: number; totalPages: number }> {
+    const [jobPosts, total] = await this.jobPostRepository.findAndCount({
+      relations: ['auctioneer', 'auctioneer.user', 'bids'],
+      order: {
+        bid_end_date: 'DESC',
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      data: jobPosts,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getJobPostsForBidder(userId: number, filterDto: FilterJobPostsDto): Promise<IJobPostResponse> {
+    try {
+    const bidder = await this.bidderRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
+    });
+
+    if (!bidder || bidder.user.user_type !== 2) {
+      throw new UnauthorizedException('Only bidders can access this endpoint');
+    }
+
+    const jobPosts = await this.jobPostQueryService.getJobPostsForBidder(userId, filterDto);
+    const mappedJobPosts = jobPosts.map(post => JobPostMapper.toDTO(post, userId));
+    // const mappedJobPosts: IJobPost[] = jobPosts.map(post => ({
+    //   id: post.id,
+    //   boatLength: Number(post.boatLength), // Convert string to number
+    //   additionalServices: post.additionalServices,
+    //   notes: post.notes,
+    //   location: post.location,
+    //   preferredDate: post.preferredDate,
+    //   max_bid_amount: post.max_bid_amount,
+    //   min_bid_amount: post.min_bid_amount,
+    //   bid_start_date: post.bid_start_date,
+    //   bid_end_date: post.bid_end_date,
+    //   job_start_date: post.job_start_date,
+    //   job_end_date: post.job_end_date,
+    //   auctioneer: {
+    //     id: post.auctioneer.id,
+    //     company_name: post.auctioneer.company_name,
+    //     user: {
+    //       id: post.auctioneer.user.id,
+    //       email: post.auctioneer.user.email,
+    //       first_name: post.auctioneer.user.first_name,
+    //       last_name: post.auctioneer.user.last_name
+    //     },
+    //   },
+    //   bids: post.bids?.map(bid => ({
+    //     id: bid.id,
+    //     amount: bid.bid_amount,
+    //     message: bid.message,
+    //     bidder: `${bid.bidder.user.first_name} ${bid.bidder.user.last_name}`
+    //   })) || []
+    // }));
+
+    return {
+      success: true,
+      message: 'Job posts retrieved successfully',
+      data: mappedJobPosts,
+    };
+    } catch (error) {
+      return ErrorUtils.createErrorResponse(error);
+    }
+  }
+
+
   async getJobPostsByBidder(userId: number): Promise<JobPost[]> {
+    // First find the bidder
     const bidder = await this.bidderRepository.findOne({
       where: { user: { id: userId } },
       relations: ['user'],
@@ -63,11 +177,12 @@ export class JobPostsService {
       throw new UnauthorizedException('Only bidders can access this endpoint');
     }
 
-    return this.jobPostRepository
-      .createQueryBuilder('jobPost')
-      .leftJoinAndSelect('jobPost.auctioneer', 'auctioneer')
+    // Get job posts where the bidder has placed bids
+    const jobPosts = await this.jobPostRepository
+      .createQueryBuilder('jobpost')
+      .leftJoinAndSelect('jobpost.auctioneer', 'auctioneer')
       .leftJoinAndSelect('auctioneer.user', 'auctioneerUser')
-      .leftJoinAndSelect('jobPost.bids', 'bids')
+      .leftJoinAndSelect('jobpost.bids', 'bids')
       .leftJoinAndSelect('bids.bidder', 'bidder')
       .leftJoinAndSelect('bidder.user', 'bidderUser')
       .where((qb) => {
@@ -75,99 +190,21 @@ export class JobPostsService {
           .subQuery()
           .select('1')
           .from('bid', 'b')
-          .where('b.job_post_id = jobPost.id')
-          .andWhere('b.bidder_id = :bidderId')
+          .where('b.jobPostId = jobPost.id')
+          .andWhere('b.bidderId = :bidderId')
           .getQuery();
         return 'EXISTS ' + subQuery;
       })
       .setParameter('bidderId', bidder.id)
-      .orderBy('jobPost.id', 'DESC')
       .getMany();
-  }
-
-  async getJobPostsForBidder(userId: number, filterDto: any): Promise<JobPost[]> {
-    const bidder = await this.bidderRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user'],
+  
+    return jobPosts.map(jobPost => {
+      const myBid = jobPost.bids.find(bid => bid.bidder.id === bidder.id);
+      return {
+        ...jobPost,
+        my_bid_amount: myBid ? myBid.bid_amount : null
+      };
     });
 
-    if (!bidder) {
-      throw new UnauthorizedException('Only bidders can access this endpoint');
-    }
-
-    if (!bidder.latitude || !bidder.longitude) {
-      throw new BadRequestException('Bidder location not set');
-    }
-
-    const radius = filterDto.radius || 7;
-
-    let query = this.jobPostRepository
-      .createQueryBuilder('jobPost')
-      .leftJoinAndSelect('jobPost.auctioneer', 'auctioneer')
-      .leftJoinAndSelect('jobPost.bids', 'bids')
-      .leftJoinAndSelect('bids.bidder', 'bidder')
-      .where('NOT EXISTS (SELECT 1 FROM bid WHERE bid.job_post_id = jobPost.id AND bid.bidder_id = :bidderId)', 
-        { bidderId: bidder.id });
-
-    query = query.andWhere(
-      `(
-        6371 * acos(
-          cos(radians(:latitude)) * 
-          cos(radians(ST_X(jobPost.location::geometry))) * 
-          cos(radians(ST_Y(jobPost.location::geometry)) - radians(:longitude)) + 
-          sin(radians(:latitude)) * 
-          sin(radians(ST_X(jobPost.location::geometry)))
-        )
-      ) <= :radius`,
-      {
-        latitude: bidder.latitude,
-        longitude: bidder.longitude,
-        radius,
-      }
-    );
-
-    if (filterDto.boatLengthFrom !== undefined) {
-      query = query.andWhere('jobPost.boatLength >= :boatLengthFrom', {
-        boatLengthFrom: filterDto.boatLengthFrom,
-      });
-    }
-
-    if (filterDto.boatLengthTo !== undefined) {
-      query = query.andWhere('jobPost.boatLength <= :boatLengthTo', {
-        boatLengthTo: filterDto.boatLengthTo,
-      });
-    }
-
-    if (filterDto.additionalServices) {
-      const services = filterDto.additionalServices.split(',').map(s => s.trim());
-      if (services.length > 0) {
-        query = query.andWhere('jobPost.additionalServices @> :services', {
-          services,
-        });
-      }
-    }
-
-    return query.getMany();
-  }
-
-  async getAllJobPosts(page: number, limit: number): Promise<{
-    data: JobPost[];
-    total: number;
-    page: number;
-    totalPages: number;
-  }> {
-    const [data, total] = await this.jobPostRepository.findAndCount({
-      relations: ['auctioneer', 'auctioneer.user', 'bids', 'bids.bidder'],
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { id: 'DESC' },
-    });
-
-    return {
-      data,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-    };
   }
 }

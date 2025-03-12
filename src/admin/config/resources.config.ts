@@ -1,15 +1,4 @@
-interface ResourceOptions {
-  listProperties?: string[];
-  filterProperties?: string[];
-  editProperties?: string[];
-  showProperties?: string[];
-}
-
-interface ResourceWithOptions {
-  resource: any;
-  options: ResourceOptions;
-}
-
+import { ResourceWithOptions } from 'adminjs';
 import { User } from '../../entities/user.entity';
 import { Auctioneer } from '../../entities/auctioneer.entity';
 

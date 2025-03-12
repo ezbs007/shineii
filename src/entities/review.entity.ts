@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
-import { Job } from './job.entity';
+// import { Job } from './job.entity';
 
 @Entity()
 export class Review {
@@ -12,6 +12,6 @@ export class Review {
   @Column()
   review: string;
 
-  @ManyToOne(() => Job, job => job.reviews)
-  job: Job;
+  // @ManyToOne(() => Job, job => job.reviews)
+  // job: Job;
 }

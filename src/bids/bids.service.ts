@@ -21,12 +21,13 @@ export class BidsService {
   ) {}
 
   async create(userId: number, createBidDto: CreateBidDto): Promise<Bid> {
+    // Find user and verify they are a bidder
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['bidder'],
     });
 
-    if (!user || user.user_type !== 'bidder') {
+    if (!user || user.user_type !== 2) {
       throw new UnauthorizedException('Only bidders can create bids');
     }
 
@@ -34,6 +35,7 @@ export class BidsService {
       throw new UnauthorizedException('Bidder profile not found');
     }
 
+    // Find the job post
     const jobPost = await this.jobPostRepository.findOne({
       where: { id: createBidDto.jobPostId },
     });
@@ -41,19 +43,21 @@ export class BidsService {
     if (!jobPost) {
       throw new NotFoundException('Job post not found');
     }
-
-    // Update job post status to bid_placed
     jobPost.status = 'bid_placed';
     await this.jobPostRepository.save(jobPost);
 
+    // Create and save the bid
     const bid = this.bidRepository.create({
       job_post: jobPost,
-      bidder: user.bidder,
+      bidder: user.bidder[0],
       bid_amount: createBidDto.bid_amount,
       message: createBidDto.message,
-      negosiation: true,
+      negosiation: true, // Default value as per requirement
     });
+    console.log(user.bidder);
+    console.log(bid.bidder);
+    this.bidRepository.insert(bid)
 
-    return this.bidRepository.save(bid);
+    return bid;
   }
 }

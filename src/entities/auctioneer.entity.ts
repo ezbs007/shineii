@@ -25,4 +25,6 @@ export class Auctioneer {
 
   @OneToMany(() => Job, job => job.auctioneer)
   jobs: Job[];
+
+
 }

@@ -4,12 +4,10 @@ import { Repository, Between } from 'typeorm';
 import { Job } from '../entities/job.entity';
 import { Bid } from '../entities/bid.entity';
 import { User } from '../entities/user.entity';
-import { JobPost } from '../entities/job-post.entity';
 import { CalendarJobsDto } from './dto/calendar-jobs.dto';
-import { PaginationDto } from './dto/pagination.dto';
-import { IJobResponse } from './interfaces/job.interface';
-import { ErrorUtil } from '../common/utils/error.util';
-import { JobMapper } from './mappers/job.mapper';
+import { IJobResponse, ICalendarJob } from './interfaces/job.interface';
+import { ErrorUtils } from 'src/utils/error.utils';
+import { JobPost } from 'src/entities/job-post.entity';
 
 @Injectable()
 export class JobsService {
@@ -22,46 +20,32 @@ export class JobsService {
     private userRepository: Repository<User>,
     @InjectRepository(JobPost)
     private jobPostRepository: Repository<JobPost>
-  ) {}
-
-  private async validateUser(userId: number, type: 'auctioneer' | 'bidder'): Promise<User> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['auctioneer', 'bidder']
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    if (type === 'auctioneer' && !user.auctioneer) {
-      throw new UnauthorizedException('Only auctioneers can perform this action');
-    }
-
-    if (type === 'bidder' && !user.bidder) {
-      throw new UnauthorizedException('Only bidders can perform this action');
-    }
-
-    return user;
-  }
+  ) { }
 
   async createFromBid(userId: number, bidId: number): Promise<Job> {
-    const user = await this.validateUser(userId, 'auctioneer');
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['auctioneer']
+    });
+
+    if (!user || !user.auctioneer) {
+      throw new UnauthorizedException('Only auctioneers can create jobs');
+    }
 
     const bid = await this.bidRepository.findOne({
       where: { id: bidId },
       relations: [
         'job_post',
         'job_post.auctioneer',
-        'bidder'
+        'bidder',
+        'bidder.user'
       ],
     });
 
     if (!bid) {
       throw new NotFoundException('Bid not found');
     }
-
-    if (bid.job_post.auctioneer.id !== user.auctioneer.id) {
+    if (bid.job_post.auctioneer.id !== user.auctioneer[0].id) {
       throw new UnauthorizedException('You can only create jobs for your own job posts');
     }
 
@@ -72,84 +56,123 @@ export class JobsService {
     if (existingJob) {
       throw new ConflictException('This bid is already associated with a job');
     }
-
-    // Update job post status to bid_accepted
     bid.job_post.status = 'bid_accepted';
     await this.jobPostRepository.save(bid.job_post);
 
-    const job = this.jobRepository.create({
-      job: `Boat ${bid.job_post.boatLength}ft`,
-      auctioneer: user.auctioneer,
-      bidder: bid.bidder,
-      payment_amount: bid.bid_amount,
-      payment_status: 'pending',
-      job_start_date: bid.job_post.job_start_date,
-      job_end_date: bid.job_post.job_end_date,
-      bid: bid
+    try {
+
+      // Create new job entity
+
+      const job = new Job();
+
+      job.job = `Boat ${bid.job_post.boatLength}ft`;
+
+      job.auctioneer = user.auctioneer[0];
+
+      job.bidder = bid.bidder;
+
+      job.payment_amount = bid.bid_amount;
+
+      job.payment_status = 'pending';
+
+      job.job_start_date = new Date(bid.job_post.preferredDate);
+
+      job.job_end_date = bid.job_post.job_end_date;
+
+      job.bid = bid;
+
+
+
+      // Save the job using save() instead of create()
+
+      return await this.jobRepository.save(job);
+
+    } catch (error) {
+
+      throw new Error(`Failed to create job: ${error.message}`);
+
+    }
+
+    // const job = this.jobRepository.create({
+    //   job: `Boat ${bid.job_post.boatLength}ft`,
+    //   auctioneer: user.auctioneer,
+    //   bidder: bid.bidder,
+    //   payment_amount: bid.bid_amount,
+    //   payment_status: 'pending',
+    //   job_start_date: bid.job_post.job_start_date,
+    //   job_end_date: bid.job_post.job_end_date,
+    //   bid: bid
+    // });
+
+    // // Save the job
+    // const savedJob = await this.jobRepository.save(job);
+
+    // // Return the saved job with relations
+    // return this.jobRepository.findOne({
+    //   where: { id: savedJob.id },
+    //   relations: [
+    //     'auctioneer',
+    //     'auctioneer.user',
+    //     'bidder',
+    //     'bidder.user',
+    //     'bid',
+    //     'bid.job_post'
+    //   ]
+    // });
+  }
+
+  async getAuctioneerJobs(userId: number): Promise<Job[]> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['auctioneer']
     });
 
-    return this.jobRepository.save(job);
+    if (!user || !user.auctioneer) {
+      throw new UnauthorizedException('Only auctioneers can view jobs');
+    }
+
+    return this.jobRepository.find({
+      where: { auctioneer: { id: user.auctioneer.id } },
+      relations: [
+        'bidder',
+        'bidder.user',
+        'bid',
+        'bid.job_post',
+
+      ],
+      order: { id: 'DESC' }
+    });
   }
 
-  async getAuctioneerJobs(userId: number, pagination?: PaginationDto): Promise<IJobResponse> {
+  async getBidderJobs(userId: number): Promise<IJobResponse> {
     try {
-      const user = await this.validateUser(userId, 'auctioneer');
-
-      const [jobs, total] = await this.jobRepository.findAndCount({
-        where: { auctioneer: { id: user.auctioneer.id } },
-        relations: [
-          'bidder',
-          'bidder.user',
-          'bid',
-          'bid.job_post',
-          'reviews'
-        ],
-        order: { id: 'DESC' },
-        skip: pagination?.page ? (pagination.page - 1) * (pagination.limit || 10) : 0,
-        take: pagination?.limit || 10
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        relations: ['bidder']
       });
 
-      return {
-        success: true,
-        message: 'Auctioneer jobs retrieved successfully',
-        data: jobs.map(job => JobMapper.toDTO(job)),
-        total,
-        page: pagination?.page || 1,
-        totalPages: Math.ceil(total / (pagination?.limit || 10))
-      };
-    } catch (error) {
-      return ErrorUtil.createErrorResponse(error);
-    }
-  }
+      if (!user || !user.bidder) {
+        throw new UnauthorizedException('Only bidders can view their jobs');
+      }
 
-  async getBidderJobs(userId: number, pagination?: PaginationDto): Promise<IJobResponse> {
-    try {
-      const user = await this.validateUser(userId, 'bidder');
-
-      const [jobs, total] = await this.jobRepository.findAndCount({
+      const jobs = await this.jobRepository.find({
         where: { bidder: { id: user.bidder.id } },
         relations: [
           'auctioneer',
           'auctioneer.user',
           'bid',
-          'bid.job_post',
-          'reviews'
+          'bid.job_post'
         ],
-        order: { id: 'DESC' },
-        skip: pagination?.page ? (pagination.page - 1) * (pagination.limit || 10) : 0,
-        take: pagination?.limit || 10
+        order: { id: 'DESC' }
       });
 
       return {
         success: true,
         message: 'Bidder jobs retrieved successfully',
-        data: jobs.map(job => JobMapper.toDTO(job)),
-        total,
-        page: pagination?.page || 1,
-        totalPages: Math.ceil(total / (pagination?.limit || 10))
+        data: jobs
       };
     } catch (error) {
-      return ErrorUtil.createErrorResponse(error);
+      return ErrorUtils.createErrorResponse(error);
     }
   }
 
@@ -169,7 +192,7 @@ export class JobsService {
           'bidder.user',
           'bid',
           'bid.job_post',
-          'reviews'
+
         ]
       });
 
@@ -177,6 +200,7 @@ export class JobsService {
         throw new NotFoundException('Job not found');
       }
 
+      // Check if user is either the auctioneer or bidder of this job
       if (user.auctioneer?.id !== job.auctioneer.id && user.bidder?.id !== job.bidder.id) {
         throw new UnauthorizedException('You do not have permission to view this job');
       }
@@ -184,19 +208,26 @@ export class JobsService {
       return {
         success: true,
         message: 'Job details retrieved successfully',
-        data: JobMapper.toDTO(job)
+        data: job
       };
     } catch (error) {
-      return ErrorUtil.createErrorResponse(error);
+      return ErrorUtils.createErrorResponse(error);
     }
   }
 
   async getCalendarJobs(userId: number, { month, year }: CalendarJobsDto): Promise<IJobResponse> {
     try {
-      const user = await this.validateUser(userId, 'bidder');
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        relations: ['bidder']
+      });
 
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0, 23, 59, 59);
+      if (!user || !user.bidder) {
+        throw new UnauthorizedException('Only bidders can view their calendar');
+      }
+
+      const startDate = new Date(Number(year), Number(month) - 1, 1);
+      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
 
       const jobs = await this.jobRepository.find({
         where: {
@@ -214,7 +245,29 @@ export class JobsService {
         }
       });
 
-      const calendarJobs = jobs.map(job => JobMapper.toCalendarDTO(job));
+      const calendarJobs: ICalendarJob[] = jobs.map(job => ({
+        id: job.id,
+        title: job.job,
+        start: job.job_start_date,
+        end: job.job_end_date,
+        auctioneer: {
+          company_name: job.auctioneer.company_name,
+          contact_number: job.auctioneer.contact_number,
+          user: {
+            first_name: job.auctioneer.user.first_name,
+            last_name: job.auctioneer.user.last_name
+          }
+        },
+        job_details: {
+          boat_length: job.bid.job_post.boatLength,
+          additional_services: job.bid.job_post.additionalServices,
+          notes: job.bid.job_post.notes
+        },
+        payment: {
+          amount: job.payment_amount,
+          status: job.payment_status
+        }
+      }));
 
       return {
         success: true,
@@ -222,7 +275,7 @@ export class JobsService {
         data: calendarJobs
       };
     } catch (error) {
-      return ErrorUtil.createErrorResponse(error);
+      return ErrorUtils.createErrorResponse(error);
     }
   }
 }

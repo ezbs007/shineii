@@ -1,8 +1,4 @@
-interface AuthenticationOptions {
-  authenticate: (email: string, password: string) => Promise<any>;
-  cookieName: string;
-  cookiePassword: string;
-}
+
 
 const DEFAULT_ADMIN = {
   email: 'admin@example.com',
@@ -16,7 +12,7 @@ const authenticate = async (email: string, password: string) => {
   return null;
 };
 
-export const authConfig: AuthenticationOptions = {
+export const authConfig = {
   authenticate,
   cookieName: 'adminjs',
   cookiePassword: 'secret',

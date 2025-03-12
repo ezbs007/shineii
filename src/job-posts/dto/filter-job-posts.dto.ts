@@ -23,4 +23,8 @@ export class FilterJobPostsDto {
   @IsOptional()
   @IsString()
   additionalServices?: string; // Comma-separated string of services
+
+  @IsOptional()
+  @IsString()
+  boatName?: string; // Add this line
 }

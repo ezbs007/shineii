@@ -53,7 +53,7 @@
                                 <input type="datetime-local" name="job_end_date" class="form-control" value="<%= jobPost?.job_end_date ? new Date(jobPost.job_end_date).toISOString().slice(0, 16) : '' %>">
                             </div>
                             <button type="submit" class="btn btn-primary">Save</button>
-                            <a href="/admin/job-posts" class="btn btn-secondary">Cancel</a>
+                            <a href="/admin/jobposts" class="btn btn-secondary">Cancel</a>
                         </form>
                     </div>
                 </div>
@@ -71,7 +71,7 @@
             data.additionalServices = data.additionalServices.split(',').map(s => s.trim());
             
             const method = '<%= jobPost ? "PUT" : "POST" %>';
-            const url = '/admin/job-posts<%= jobPost ? "/" + jobPost.id : "" %>';
+            const url = '/admin/jobposts<%= jobPost ? "/" + jobPost.id : "" %>';
             
             try {
                 const response = await fetch(url, {
@@ -81,7 +81,7 @@
                 });
                 
                 if (response.ok) {
-                    window.location.href = '/admin/job-posts';
+                    window.location.href = '/admin/jobposts';
                 } else {
                     alert('Error saving job post');
                 }

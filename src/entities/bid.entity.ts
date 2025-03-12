@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
 import { JobPost } from './job-post.entity';
 import { Bidder } from './bidder.entity';
-import { ChatRoom } from './chat-room.entity';
+// import { ChatRoom } from './chat-room.entity';
 
 @Entity()
 export class Bid {
@@ -23,6 +23,6 @@ export class Bid {
   @ManyToOne(() => Bidder, bidder => bidder.bids)
   bidder: Bidder;
 
-  @OneToMany(() => ChatRoom, chatRoom => chatRoom.bid)
-  chatRooms: ChatRoom[];
+  // @OneToMany(() => ChatRoom, chatRoom => chatRoom.bid)
+  // chatRooms: ChatRoom[];
 }

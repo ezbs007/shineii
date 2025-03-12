@@ -14,11 +14,13 @@ export interface IBidSummary {
 export interface IJobPost {
   id: number;
   boatLength: number;
+  boatName: string;
   additionalServices: string[];
   notes?: string;
   location?: ILocation;
   preferredDate?: string;
   max_bid_amount?: number;
+  min_bid_amount?: number;
   bid_start_date?: Date;
   bid_end_date?: Date;
   job_start_date?: Date;
@@ -34,7 +36,7 @@ export interface IJobPost {
     };
   };
   bids: IBidSummary[];
-  mybid?: IBidSummary;
+  mybid: IBidSummary;
 }
 
 export interface IJobPostResponse {

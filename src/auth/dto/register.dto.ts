@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, MinLength, IsString, IsEnum } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength, IsString, IsNumber } from 'class-validator';
 
 export class RegisterDto {
   @IsNotEmpty()
@@ -18,6 +18,9 @@ export class RegisterDto {
   password: string;
 
   @IsNotEmpty()
-  @IsEnum(['bidder', 'auctioneer'])
-  user_type: string;
+  @IsNumber()
+  user_type: number;
+
+  @IsNumber()
+  service_range: number = 7;
 }

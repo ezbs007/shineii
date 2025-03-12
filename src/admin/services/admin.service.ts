@@ -7,7 +7,7 @@ import { Auctioneer } from '../../entities/auctioneer.entity';
 import { Bidder } from '../../entities/bidder.entity';
 import { JobPost } from '../../entities/job-post.entity';
 import { LoginDto } from '../dto/login.dto';
-import { createHash } from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AdminService {
@@ -23,16 +23,12 @@ export class AdminService {
     private jwtService: JwtService,
   ) {}
 
-  private hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
-  }
-
   async validateAdmin(loginDto: LoginDto) {
     const user = await this.userRepository.findOne({
-      where: { email: loginDto.email, user_type: 'admin' },
+      where: { email: loginDto.email, user_type: 0 },
     });
 
-    if (user && this.hashPassword(loginDto.password) === user.password) {
+    if (user && await bcrypt.compare(loginDto.password, user.password)) {
       const token = this.jwtService.sign({ sub: user.id, email: user.email });
       return { token };
     }

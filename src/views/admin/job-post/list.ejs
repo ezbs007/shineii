@@ -42,7 +42,7 @@
                                         <% } %>
                                     </td>
                                     <td>
-                                        <a href="/admin/job-posts/<%= jobPost.id %>" class="btn btn-sm btn-info">View</a>
+                                        <a href="/admin/jobposts/<%= jobPost.id %>" class="btn btn-sm btn-info">View</a>
                                         <button onclick="deleteJobPost(<%= jobPost.id %>)" class="btn btn-sm btn-danger">Delete</button>
                                     </td>
                                 </tr>
@@ -57,7 +57,7 @@
     <script>
         function deleteJobPost(id) {
             if (confirm('Are you sure you want to delete this job post?')) {
-                fetch(`/admin/job-posts/${id}`, { method: 'DELETE' })
+                fetch(`/admin/jobposts/${id}`, { method: 'DELETE' })
                     .then(() => window.location.reload())
                     .catch(error => alert('Error deleting job post'));
             }

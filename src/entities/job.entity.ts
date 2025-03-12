@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, OneToOne, JoinColumn } from 'typeorm';
 import { Auctioneer } from './auctioneer.entity';
 import { Bidder } from './bidder.entity';
-import { Review } from './review.entity';
+// import { Review } from './review.entity';
 import { Bid } from './bid.entity';
 import { Payment } from './payment.entity';
 
@@ -19,10 +19,10 @@ export class Job {
   @ManyToOne(() => Bidder, bidder => bidder.jobs)
   bidder: Bidder;
 
-  @Column()
+  @Column({ nullable: true })
   job_start_date: Date;
 
-  @Column()
+  @Column({ nullable: true })
   job_end_date: Date;
 
   @Column()
@@ -35,9 +35,9 @@ export class Job {
   @JoinColumn()
   bid: Bid;
 
-  @OneToMany(() => Review, review => review.job)
-  reviews: Review[];
-
   @OneToMany(() => Payment, payment => payment.job)
   payments: Payment[];
+
+  // @OneToMany(() => Review, review => review.job)
+  // reviews: Review[];
 }

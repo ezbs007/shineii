@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Payment, PaymentStatus } from '../entities/payment.entity';
 import { Job } from '../entities/job.entity';
 import { StripeService } from './stripe.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -17,7 +18,7 @@ export class PaymentsService {
 
   async createPaymentIntent(jobId: string, userId: string): Promise<Payment> {
     const job = await this.jobRepository.findOne({
-      where: { id: jobId },
+      where: { id: Number(jobId) },
       relations: ['auctioneer', 'auctioneer.user']
     });
 
@@ -25,11 +26,11 @@ export class PaymentsService {
       throw new NotFoundException('Job not found');
     }
 
-    if (job.auctioneer.user.id !== userId) {
+    if (job.auctioneer.user.id !== Number(userId)) {
       throw new BadRequestException('Unauthorized to create payment for this job');
     }
 
-    const amount = Math.round(job.payment_amount * 100);
+    const amount = Math.round(job.payment_amount * 100); // Convert to cents for Stripe
 
     const paymentIntent = await this.stripeService.createPaymentIntent({
       amount,
@@ -106,9 +107,45 @@ export class PaymentsService {
     }
   }
 
+  async confirmPayment(paymentIntentId: string): Promise<Payment> {
+    const payment = await this.paymentRepository.findOne({
+      where: { stripePaymentIntentId: paymentIntentId },
+      relations: ['job'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    const paymentIntent = await this.stripeService.retrievePaymentIntent(paymentIntentId);
+
+    if (paymentIntent.status === 'succeeded') {
+      payment.status = PaymentStatus.COMPLETED;
+      payment.job.payment_status = 'completed';
+      await this.jobRepository.save(payment.job);
+    } else {
+      payment.status = PaymentStatus.FAILED;
+    }
+
+    return this.paymentRepository.save(payment);
+  }
+
+  async getPaymentStatus(paymentId: string): Promise<Payment> {
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+      relations: ['job'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    return payment;
+  }
+
   async confirmJobPayment(jobId: string): Promise<Payment> {
     const payment = await this.paymentRepository.findOne({
-      where: { job: { id: jobId } },
+      where: { job: { id: Number(jobId) } },
       relations: ['job', 'job.auctioneer', 'job.bidder'],
     });
 
@@ -131,16 +168,4 @@ export class PaymentsService {
     return this.paymentRepository.save(payment);
   }
 
-  async getPaymentStatus(paymentId: string): Promise<Payment> {
-    const payment = await this.paymentRepository.findOne({
-      where: { id: paymentId },
-      relations: ['job'],
-    });
-
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
-
-    return payment;
-  }
 }

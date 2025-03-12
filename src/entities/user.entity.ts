@@ -7,20 +7,23 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({nullable:false,})
   first_name: string;
 
-  @Column()
+  @Column({nullable:false,})
   last_name: string;
 
-  @Column({ unique: true })
+  @Column({nullable:false,unique:true})
   email: string;
 
-  @Column()
+  @Column({nullable:false})
   password: string;
 
-  @Column()
-  user_type: string;
+  @Column({nullable:false})
+  user_type: number;
+
+  @Column({ nullable: true })
+  service_range: number;
 
   @Column({ nullable: true })
   profile_pic: string;

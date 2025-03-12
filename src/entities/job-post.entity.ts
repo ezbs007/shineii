@@ -12,27 +12,35 @@ export class JobPost {
   @ManyToOne(() => Auctioneer, auctioneer => auctioneer.jobPosts)
   auctioneer: Auctioneer;
 
-  @Column()
-  boatLength: number;
+  @Column({ nullable: false, default: "20" })
+  boatLength: string;
 
   @Column("text", { array: true })
-  additionalServices: string[];  
+  additionalServices: string[];
 
   @Column({ nullable: true })
   notes: string;
 
   @Column('json', { nullable: true })
   location: {
-    address: string;
     latitude: number;
     longitude: number;
+    dockNumber: string;
+    address: string;
+    placeId: string;
   };
+
+  @Column({ default: 1, nullable: false })
+  dirtinessLevel: number;
 
   @Column({ nullable: true })
   preferredDate: string;
 
   @Column({ nullable: true })
   max_bid_amount: number;
+
+  @Column({ nullable: true })
+  min_bid_amount: number;
 
   @Column({ nullable: true })
   bid_start_date: Date;
@@ -52,6 +60,9 @@ export class JobPost {
     default: 'active'
   })
   status: JobPostStatus;
+
+  @Column({ nullable: true })
+  boatName: string; // Add this line
 
   @OneToMany(() => Bid, bid => bid.job_post)
   bids: Bid[];

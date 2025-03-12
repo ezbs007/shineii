@@ -5,7 +5,7 @@ import { Bidder } from '../../entities/bidder.entity';
 import { User } from '../../entities/user.entity';
 import { CreateBidderDto } from '../dto/create-bidder.dto';
 import { UpdateBidderDto } from '../dto/update-bidder.dto';
-import { createHash } from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class BidderAdminService {
@@ -15,10 +15,6 @@ export class BidderAdminService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
   ) {}
-
-  private hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
-  }
 
   async findAll() {
     return this.bidderRepository.find({
@@ -38,14 +34,14 @@ export class BidderAdminService {
   }
 
   async create(createBidderDto: CreateBidderDto) {
-    const hashedPassword = this.hashPassword(createBidderDto.password);
+    const hashedPassword = await bcrypt.hash(createBidderDto.password, 10);
     
     const user = this.userRepository.create({
       email: createBidderDto.email,
       password: hashedPassword,
       first_name: createBidderDto.first_name,
       last_name: createBidderDto.last_name,
-      user_type: 'bidder',
+      user_type: 2,
     });
     
     const savedUser = await this.userRepository.save(user);
@@ -65,7 +61,7 @@ export class BidderAdminService {
     const bidder = await this.findOne(id);
     
     if (updateBidderDto.password) {
-      const hashedPassword = this.hashPassword(updateBidderDto.password);
+      const hashedPassword = await bcrypt.hash(updateBidderDto.password, 10);
       await this.userRepository.update(bidder.user.id, {
         password: hashedPassword,
       });

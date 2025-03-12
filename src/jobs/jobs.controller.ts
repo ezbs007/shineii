@@ -17,21 +17,26 @@ export class JobsController {
 
   @Get()
   async getAuctioneerJobs(@Request() req, @Query() pagination: PaginationDto) {
-    return this.jobsService.getAuctioneerJobs(req.user.userId, pagination);
+    return this.jobsService.getAuctioneerJobs(req.user.userId);
   }
 
   @Get('my-jobs')
   async getBidderJobs(@Request() req, @Query() pagination: PaginationDto) {
-    return this.jobsService.getBidderJobs(req.user.userId, pagination);
+    return this.jobsService.getBidderJobs(req.user.userId);
+  }
+
+
+
+  @Get('calendar')
+  async getCalendarJobs(
+    @Request() req, 
+    @Query() calendarJobsDto: CalendarJobsDto // This will now properly validate and transform the query parameters
+  ) {
+    return this.jobsService.getCalendarJobs(req.user.userId, calendarJobsDto);
   }
 
   @Get(':id')
   async getJobDetails(@Request() req, @Param('id') id: number) {
     return this.jobsService.getJobDetails(req.user.userId, id);
-  }
-
-  @Get('calendar')
-  async getCalendarJobs(@Request() req, @Query() calendarJobsDto: CalendarJobsDto) {
-    return this.jobsService.getCalendarJobs(req.user.userId, calendarJobsDto);
   }
 }
